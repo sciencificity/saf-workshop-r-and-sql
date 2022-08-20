@@ -1,0 +1,278 @@
+---
+title: "SQL and R: A match made for you"
+author: "Vebash Naidoo"
+format: html
+editor: visual
+---
+
+# Practise
+
+Alright let's get to it. We will do more practise now with some databases.
+
+### Packages needed
+
+```{r}
+#| label: load-pkgs 
+#| include: true
+#| warning: false
+#| message: false
+
+#install.packages("pacman")   # Install pacman package
+library("pacman")            # Load pacman package
+
+p_load(DBI, odbc, RSQLite, tidyverse, dbplyr, tidyquery, countrycode, RMariaDB)
+```
+
+## SQLite DB Create
+
+First let's create an in memory DB and explore it.
+
+### Open a connection
+
+```{r}
+#| label: create-sqlite-con 
+#| include: true
+#| warning: false
+#| message: false
+
+# Create an in-memory RSQLite DB
+con <- dbConnect(RSQLite::SQLite(), ":memory:")
+# List tables available through our connection
+dbListTables(con) # nothing there yet
+```
+
+### Create the table(s)
+
+```{r}
+#| label: create-tbl-for-db 
+#| include: true
+#| warning: false
+#| message: false
+car_names <- rownames(mtcars) %>% 
+  as_tibble() %>% 
+  rename("CarName" = "value")
+
+mtcars_tbl <- mtcars %>% 
+  as_tibble()
+
+mtcars_tbl <- mtcars_tbl %>% 
+  bind_cols(car_names) %>% 
+  select(CarName, everything())
+
+dbWriteTable(con, # using connection con
+    "mtcars", # write into a table "mtcars"
+     mtcars_tbl, # the dataset mtcars
+     overwrite = TRUE # overwrite the data there if it exists
+     )
+```
+
+Now that we've written a table, let's have a look at what our database contains.
+
+```{r}
+#| label: whats-in-the-db 
+#| include: true
+#| warning: false
+#| message: false
+dbListTables(con)
+
+dbListFields(con, "mtcars")
+```
+
+#### Queries using {dplyr}
+
+```{r}
+#| label: dplyr-queries 
+#| include: true
+#| warning: false
+#| message: false
+tbl(con, # using our connection
+    'mtcars' # reach into the mtcars table
+    ) %>% 
+  select(cyl) %>% distinct()
+
+tbl(con, "mtcars") %>% 
+  count(cyl)
+
+tbl(con, "mtcars") %>% 
+  group_by(cyl) %>% 
+  summarise(mean_disp = mean(disp, na.rm = TRUE),
+            mean_mpg = mean(mpg, na.rm = TRUE),
+            med_wt = median(wt, na.rm = TRUE)) 
+
+tbl(con, "mtcars") %>% 
+  mutate(new_car_name = 
+           paste(CarName, cyl, sep = " - ")) %>% 
+  select(CarName, cyl, new_car_name) %>% show_query()
+
+mtcars_from_db <- tbl(con, "mtcars") %>% 
+  collect()
+
+mtcars_from_db %>% 
+  slice_head(n=5)
+```
+
+#### Queries using SQL
+
+```{sql}
+#| connection: con
+
+-- Let's have a look at a few rows using SQL now (this is a SQL comment - notice the `--`)
+SELECT * FROM mtcars
+LIMIT 10
+```
+
+We can even copy the contents of the `show_query` result into a SQL code block and execute this.
+
+```{sql}
+#| connection: con
+
+SELECT `CarName`
+, `cyl`
+, `CarName` || ' - ' || `cyl` AS `new_car_name`
+FROM `mtcars`
+```
+
+Once we are done we need to disconnect!
+
+```{r}
+dbDisconnect(con)
+```
+
+## Work with a created SQLite DB
+
+In the folder you will find another SQLite DB named `ticket_to_ride.sqlite`.
+
+```{r}
+con <- DBI::dbConnect(RSQLite::SQLite(), 
+        dbname = "ticket_to_ride.sqlite")
+dbListTables(con)
+tbl(con, "country_codes")
+tbl(con, "transit_cost")
+
+summary_transit <- tbl(con, "transit_cost") %>% 
+  filter(country %in% c("US", "CA")) %>% 
+  group_by(country) %>% 
+  mutate(avg_cost_km = mean(cost_km_millions,
+                        na.rm = TRUE),
+         max_cost_km = max(cost_km_millions,
+                        na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  select(country, start_year, end_year,
+         cost_km_millions, avg_cost_km, 
+         max_cost_km) %>% 
+  arrange(desc(avg_cost_km), start_year) %>% 
+  collect()
+
+summary_all_countries <- tbl(con, "transit_cost") %>% 
+  group_by(country) %>% 
+  mutate(avg_cost_km = mean(cost_km_millions,
+                        na.rm = TRUE),
+         max_cost_km = max(cost_km_millions,
+                        na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  select(country, avg_cost_km, 
+         max_cost_km) %>% 
+  collect()
+
+summary_all_countries %>% 
+  arrange(desc(max_cost_km)) %>% 
+  distinct() %>% 
+  slice_head(n = 8) %>% 
+  ggplot(aes(y = country, x = max_cost_km)) +
+  geom_col()
+
+dbDisconnect(con)
+```
+
+## Work with a MSQL DB
+
+In the [DBI Documentation](https://dbi.r-dbi.org/articles/dbi) there is a reference to a MSQL DB. Let's connect and see how seamlessly `dbplyr` handles a new dialect of SQL.
+
+```{r}
+#| label: mysql-db 
+#| include: true
+#| warning: false
+#| message: false
+library(DBI)
+
+con <- dbConnect(
+  RMariaDB::MariaDB(),
+  host = "relational.fit.cvut.cz",
+  port = 3306,
+  username = "guest",
+  password = "relational",
+  dbname = "sakila"
+)
+
+dbListTables(con)
+
+tbl(con, "actor") %>% 
+  inner_join(tbl(con, "film_actor"),
+          by = c("actor_id" = "actor_id")) %>% 
+  inner_join(tbl(con, "film"),
+          by = c("film_id" = "film_id")) %>%
+  inner_join(tbl(con, "film_category"),
+          by = c("film_id" = "film_id")) %>% 
+  inner_join(tbl(con, "category"),
+          by = c("category_id" = "category_id")) %>% 
+  select(first_name, last_name, title, rating, name, length, replacement_cost, rental_rate) %>% 
+  group_by(first_name, last_name, name) %>% 
+  summarise(mean_duration = mean(length, na.rm=TRUE),
+          mean_replacement_cost = mean(replacement_cost, na.rm=TRUE),
+          number_of_category = n())
+```
+
+```{sql}
+#| connection: con
+#| output.var: "agg_mysql"
+
+SELECT first_name
+, last_name
+, name AS category
+, AVG(length) AS mean_duration
+, AVG(replacement_cost) AS mean_replacement_cost
+, COUNT(name) AS number_of_category
+FROM actor a
+INNER JOIN film_actor fa ON a.actor_id = fa.actor_id
+INNER JOIN film f ON f.film_id = fa.film_id
+INNER JOIN film_category fc ON fc.film_id = f.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
+GROUP BY first_name, last_name, name
+```
+
+```{r}
+agg_mysql %>% 
+  glimpse()
+```
+
+```{r}
+dbDisconnect(con)
+```
+
+## `{tidyquery}`
+
+Tidyquery allows you to query a dataframe as though it is a SQL DB table! If you're more familiar with SQL and want to learn the `{tidyverse}` this is a good package for that!
+
+```{r}
+class(agg_mysql)
+
+query(
+  "SELECT first_name AS Name
+  , last_name AS Surname
+  , category AS Category
+  , mean_duration AS AvgDuration
+  FROM agg_mysql
+  WHERE lower(first_name) = 'adam'
+  ORDER BY mean_duration DESC"
+)
+
+show_dplyr(
+  "SELECT first_name AS Name
+  , last_name AS Surname
+  , category AS Category
+  , mean_duration AS AvgDuration
+  FROM agg_mysql
+  WHERE lower(first_name) = 'adam'
+  ORDER BY mean_duration DESC"
+)
+```
