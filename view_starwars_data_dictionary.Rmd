@@ -1,0 +1,85 @@
+---
+title: "View Star Wars DB Tables"
+author: "Vebash Naidoo"
+date: "09/01/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, 
+                      message = FALSE)
+library(tidyverse)
+library(gt)
+library(readxl)
+```
+```{r}
+## Load libraries
+library(DBI)
+```
+
+```{r}
+# Make a connection
+con <- dbConnect(drv = RMariaDB::MariaDB(), 
+                 host = "localhost", 
+                 port = "3306",
+                 user = "admin", 
+                 password = "Luke1@my0urf@ther",
+                 dbname = "starwars")
+dbListTables(con)
+```
+
+<br>
+
+```{r, echo = FALSE}
+films_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "films") %>% 
+  mutate(`Table Name` = "films", .before = `Field Name`)
+vehicles_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "vehicles") %>% 
+  mutate(`Table Name` = "vehicles", .before = `Field Name`)
+starships_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "starships") %>% 
+  mutate(`Table Name` = "starships", .before = `Field Name`)
+characters_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "characters") %>% 
+  mutate(`Table Name` = "characters", .before = `Field Name`)
+appearances_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "appearances") %>% 
+  mutate(`Table Name` = "appearances", .before = `Field Name`)
+vehicles_piloted_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "vehicles_piloted") %>% 
+  mutate(`Table Name` = "vehicles_piloted", .before = `Field Name`)
+starships_piloted_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "starships_piloted") %>% 
+  mutate(`Table Name` = "starships_piloted", .before = `Field Name`)
+survey_levels_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "survey_levels") %>% 
+  mutate(`Table Name` = "survey_levels", .before = `Field Name`)
+survey_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "survey") %>% 
+  mutate(`Table Name` = "survey", .before = `Field Name`)
+franchise_tbl <- read_xlsx("data_dictionary.xlsx", sheet = "franchise") %>% 
+  mutate(`Table Name` = "franchise", .before = `Field Name`)
+
+data_dictionary <- films_tbl %>% 
+  bind_rows(vehicles_tbl, 
+            starships_tbl,
+            characters_tbl,
+            appearances_tbl,
+            vehicles_piloted_tbl,
+            starships_piloted_tbl,
+            survey_levels_tbl, 
+            survey_tbl,
+            franchise_tbl)
+
+data_dictionary %>% 
+  gt(groupname_col = "Table Name",
+     rowname_col = "Field Name") %>% 
+  tab_header(title = "Data Dictionary for the Star Wars Database") %>% 
+  tab_options(
+    row_group.background.color = "#ADEFD1FF",
+    data_row.padding = px(3)
+  )
+```
+
+<br>
+
+
+```{r}
+dbDisconnect(con)
+```
+
+

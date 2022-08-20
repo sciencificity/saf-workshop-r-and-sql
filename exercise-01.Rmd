@@ -1,0 +1,150 @@
+---
+title: "Exercise 01"
+author: "Vebash Naidoo"
+date: "29/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    eval = FALSE
+)
+```
+
+```{r, eval = TRUE}
+library(DBI)        # Database interface to connect to a DB
+library(tidyverse)  
+library(dbplyr)     # Database backend for dplyr
+```
+
+## Make a connection
+
+Let's open a connection to the database we have stored locally in our working directory.
+
+---------------- Complete the code ----------------
+
+```{r connection}
+con <- dbConnect(
+    drv = RSQLite::______,
+    dbname = "great_brit_bakeoff.db"
+)
+```
+
+## Join Data
+
+We're interested in seeing how the winning bakers performed across the season they won. 
+
+- How many times did they win `Star Baker`?
+- How many times where they top of the technical charts?
+
+To do that we need to use the tables __baker_results__ and __results__.
+
+### Query the `results` table
+
+Let's get a list of the winners!
+
+```{r}
+winners_q <- tbl(con, "results") %>% 
+  filter(result == "WINNER") %>% 
+  select(series, baker)
+```
+
+The above is just a query string, and gives us a glimpse of the data if we execute it, but no actual data resides in R as yet.
+
+
+### Join the tables
+
+Okay, let's join the two tables and visualise the result.
+
+---------------- Complete the code ----------------
+
+```{r join}
+join_q <- tbl(con, "baker_results") %>% 
+  _____(winners_q, 
+        by = c('baker' = 'baker',
+               'series' = 'series'))
+
+join_q %>% 
+  show_query() # Have a look at the SQL
+```
+
+Now finally we bring in the data into R.
+
+```{r}
+winners_data <- 
+  # Take our query as-is now
+  join_q %>% 
+  # add some final adjustments
+  select(series, baker:result) %>% 
+  # we only want one record per winner
+  # since lots are repeated info - so get the
+  # record for when they won
+  filter(result == "WINNER") %>% 
+  # Bring data into R
+  collect()
+```
+
+### Visualise Data
+
+How did the winner of series 1 do across the season in terms of technical challenges etc.?
+
+```{r}
+library(tidyquant)
+theme_set(theme_tq())
+
+winners_data %>% 
+  # filter for season we're interested in
+  filter(series == 1) %>% 
+  # let's make all the 
+  pivot_longer(cols = c(star_baker:technical_median),
+               names_to = "metric") %>% 
+  mutate(metric = fct_reorder(metric, value)) %>% 
+  ggplot(aes(x = value, y = metric)) +
+  geom_col() +
+  labs(title = str_glue("Metrics for Season ",
+    "{winners_data %>%  filter(series == 1) %>% select(series)}'s Winner ",
+    "{winners_data %>%  filter(series == 1) %>% select(baker)}"),
+    y = "")
+```
+
+### Your Turn
+
+Choose a winner you're interested in looking at.
+
+```{r}
+winners_data %>% 
+  select(series, baker)
+```
+
+Got one? Fill in the blanks below to see how they performed across the season. 
+
+__Note:__ Once you're ready you can amend `eval = FALSE` to be `eval = TRUE` in the code chunk `setup` right at the top of this file, to include all output in your knitted document.
+
+---------------- Complete the code ----------------
+
+```{r your-turn}
+winners_data %>% 
+  filter(series == ______ ) %>% 
+  pivot_longer(cols = c(star_baker:technical_median),
+               names_to = "metric") %>% 
+  mutate(metric = fct_reorder(metric, value)) %>% 
+  ggplot(aes(x = value, y = metric)) +
+  geom_col() +
+  labs(title = str_glue("Metrics for Season ",
+    "{winners_data %>%  filter(series == ______ ) %>% select(series)}'s Winner ",
+    "{winners_data %>%  filter(series == ______ ) %>% select(baker)}"),
+    y = "")
+```
+
+### Disconnect!!
+
+Always remember to disconnect.
+
+```{r}
+dbDisconnect(con)
+```
+
+

@@ -1,0 +1,308 @@
+---
+title: "Explore MySQL DB"
+author: "Vebash Naidoo"
+date: "07/01/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 999)
+library(tidyverse)
+```
+
+# Connecting to a MySQL Database
+
+## `Connections` Pane 
+
+1. In RStudio there is a `Connections` Pane. 
+1. Create a `New Connection`.
+1. Choose an appropriate driver (e.g. I chose `MySQL ODBC 8.0 Unicode Driver`).
+1. If you struggle to figure out the parameters the [connectionstrings](https://www.connectionstrings.com/)
+website is a great help.
+
+      <img src="images/connection_string.gif" 
+     alt="connect to a database" 
+     width="680" height="700">
+     
+1. Copy the connection string as per the connection strings website and paste it in the `Parameters` field, and amend the parameters such as `user name`, `password` etc. as per your instance.
+1. Test the connection.
+1. Copy the full string and copy it into the console / script you're working in.
+
+    
+    <img src="images/connection_odbc.gif" 
+     alt="connect to a database" 
+     width="680" height="700">
+
+```{r}
+## Load libraries
+library(DBI)
+```
+
+```{r}
+# Make a connection
+con <- dbConnect(odbc::odbc(), 
+  .connection_string = "Driver={MySQL ODBC 8.0 Unicode Driver};Server=localhost;Port=3306;Database=starwars;Uid=admin;Pwd=Luke1@my0urf@ther;", 
+    timeout = 10)
+dbListTables(con)
+```
+
+Alternately we can use the driver.
+
+```{r, eval = FALSE}
+# Alternate way to make a connection
+con <- dbConnect(drv = RMariaDB::MariaDB(), 
+                 host = "localhost", 
+                 port = "3306",
+                 user = "admin", 
+                 password = "Luke1@my0urf@ther",
+                 dbname = "starwars")
+dbListTables(con)
+dbDisconnect(con)
+```
+
+
+```{r}
+tbl(con, "characters") %>% 
+  inner_join(tbl(con, "appearances")) %>% 
+  inner_join(tbl(con, "films"),
+             by = c("film_id" = "id")) %>% 
+  head(30) %>% 
+  # Have to collect to view since lazy query means data snippet only shown
+  # DT::datatable() needs a dataframe
+  collect() %>% 
+  DT::datatable(options = list(scrollX = TRUE))
+```
+
+
+```{r}
+svy_levels <- tbl(con, "survey_levels") %>% 
+  collect()
+
+character_survey <- tbl(con, "survey") %>% 
+  filter(any_of_6 == "Yes", star_wars_fan == "Yes") %>% 
+  select(`Han Solo`:`Yoda`, respondent_id,
+         age = Age, respondent_gender = Gender) %>% 
+  # we have to collect the data since the pivot_longer is
+  # not set up to work on DB Table data
+  collect() %>% 
+  pivot_longer(cols = c(`Han Solo`:`Yoda`), names_to = "name",
+               values_to = "survey_id") %>% 
+  inner_join(svy_levels,
+             by = c("survey_id" = "id"))
+
+# We want to only get the character info for the characters in the survey
+# So we want to basically say `WHERE name IN (...)`
+# This code is setting that up
+characters <- character_survey %>% select(name) %>% distinct() %>% 
+  mutate(name = str_glue("'{name}'")) %>% as_tibble()
+colnames(characters) <-  NULL
+characters <- characters %>% as.list() %>% unlist()
+characters <- characters %>%  paste(collapse =  ", ")
+sql_code <- str_glue("({characters})")
+
+char_query <- tbl(con, "characters") %>% 
+  inner_join(tbl(con, "appearances")) %>% 
+  inner_join(tbl(con, "films"),
+             by = c("film_id" = "id")) %>% 
+  select(name, gender, homeworld, species, films, year) %>% 
+  filter(name %in% sql(sql_code)) 
+
+char_query %>% 
+  show_query()
+
+character_survey %>% 
+  count(name, level)
+
+character_survey %>% 
+  distinct(name)
+
+char_query %>% 
+  distinct(name)
+
+character_info <- character_survey %>% 
+  left_join(char_query %>% 
+              collect()) 
+
+character_survey %>% 
+  select(respondent_id, name, level) %>% 
+  distinct() %>% 
+  count(level)
+
+character_info %>% 
+  select(respondent_id, name, level) %>% 
+  distinct() %>% 
+  count(level)
+
+character_info <- character_info %>% 
+  mutate(name = as.factor(name)) %>% 
+  #  level = fct_reorder(level, survey_id)) %>% 
+  mutate(sub_level = case_when(
+   str_detect(level, "Neither favorably nor unfavorably")  ~  "Neutral",
+   (str_detect(level, " unfavorably") |
+      str_detect(level, "Somewhat unfavorably"))           ~  "Unfavourable",
+   (str_detect(level, "Very favorably") |
+      str_detect(level, "Somewhat favorably"))             ~ "Favourable",
+   str_detect(level, "Unfamiliar")                         ~ "Unfamiliar",
+   TRUE                                                    ~ "None"
+   )) %>% 
+  mutate(sub_level = factor(sub_level, levels = c("Favourable", "Neutral", "Unfavourable", 
+                                     "Unfamiliar"))) 
+
+character_info <- character_info %>% 
+  select(respondent_id, name, sub_level) %>% 
+  distinct() %>% 
+  group_by(name) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  group_by(name, sub_level) %>% 
+  mutate(
+    nn = n(),
+    perc = nn / n * 100.0) %>% 
+  ungroup() %>% 
+  select(name, sub_level, n, nn, perc) %>% 
+  distinct() %>% 
+  inner_join(character_info) %>% 
+  select(respondent_id:respondent_gender, name, 
+         survey_id, level, sub_level:perc, gender:year)
+
+character_info %>% 
+  summarise(min_nn = min(nn),
+            max_nn = max(nn))
+
+```
+
+```{r}
+character_info %>%
+  select(name, perc, sub_level) %>% 
+  distinct() %>% 
+  ggplot(aes(y = name, x = perc, fill = sub_level)) +
+  geom_col() +
+  geom_text(aes(label = perc %>% round()),
+            position = position_stack(vjust = .5),
+            fontface = "bold",
+            colour = "white") +
+  scale_fill_viridis_d() +
+  labs(x = "Percentage (%)",
+       y = "",
+       title = "Popularity of Star Wars Characters",
+       subtitle = "Among US respondents who consider themselves Star Wars Fans",
+       fill = "") +
+  theme(legend.position="bottom")
+
+```
+
+```{r, eval = FALSE, echo = FALSE, out.width="110%", out.height="110%"}
+
+character_info %>% 
+  mutate(name = as.factor(name)) %>% 
+  select(sub_level, nn, name) %>% 
+  distinct() %>% 
+  ggplot(aes(y = sub_level, x = nn, fill = sub_level)) +
+  # facet_wrap(~ name, ncol = 3, scales = "free_x") +
+  facet_grid(name ~ sub_level, scales = "free", space = "free") +
+  geom_col(width = 1) +
+  scale_fill_manual(values = c('#2c634a', '#613e7d', '#403b6e', '#ad6b64', '#93397e', '#810000'),
+                    guide = "none")  +
+  labs(x = "Number of respondents",
+       y = "",
+       title = "How are Star Wars Characters\nviewed among US respondents?") +
+  theme(legend.position="bottom", 
+        panel.spacing = unit(1, "lines"),
+        strip.background = element_blank(),
+        strip.text.y = element_text(angle = 0, size = 5),
+        strip.text.x = element_text(angle = 0, size = 5),
+        axis.title.x = element_text(margin = margin(t = 0.5, 
+                                                    b = 0.5, unit = "cm")),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6),
+        axis.text.y = element_blank() ,
+        panel.grid.major.y = element_blank())
+```
+
+
+```{r}
+# remotes::install_github("hrbrmstr/waffle")
+library(waffle)
+
+character_info %>% 
+  select(name, sub_level, perc) %>% 
+  distinct() %>% 
+  filter(name == "R2-D2") %>% 
+  summarise(sum_perc = sum(perc))
+
+
+character_info %>% 
+  select(name, sub_level, perc) %>% 
+  distinct() %>% 
+  # mutate(perc = (round(perc, 1) * 100L)) %>% 
+  # filter(name == "Jar Jar Binks") %>% 
+  ggplot(aes(fill = sub_level, values = perc %>% round())) +
+  geom_waffle(colour = "white", n_rows = 10, size = 0.5,
+              pad = 1, flip = FALSE,
+              make_proportional = TRUE) +
+  facet_wrap(~ name) +
+  labs(title = "Popularity of Star Wars Characters",
+       subtitle = "Among US respondents who consider themselves Star Wars Fans",
+       x = "1 square = 1%",
+       fill = "")  +
+  theme(legend.position="bottom", 
+        panel.spacing = unit(1, "lines"),
+        strip.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+```
+
+
+```{r}
+character_transport <- tbl(con, "characters") %>% 
+  inner_join(tbl(con, "vehicles_piloted")) %>% 
+  inner_join(tbl(con, "vehicles"),
+             by = c("vehicle_id" = "id")) %>% 
+  select(everything(), -vehicle_id,
+         transportation = vehicles) %>% 
+  collect() %>% 
+  bind_rows(
+    tbl(con, "characters") %>% 
+      inner_join(tbl(con, "starships_piloted")) %>% 
+      inner_join(tbl(con, "starships"),
+                 by = c("starship_id" = "id")) %>% 
+      select(everything(), -starship_id,
+             transportation = starships) %>% 
+      collect()
+  ) %>% 
+  arrange(name)
+
+character_transport %>% 
+  count(name, transportation) %>% 
+  count(name) %>% 
+  ggplot(aes(x = n, y = fct_reorder(name, n), fill = name)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c('#339436', '#a860ac', '#a94fba', '#a440c2',
+                               '#9c32c6', '#9226c8', '#861bc8', '#7911c7',
+                               '#6b06c5', '#5b00c2', '#4700bf', '#2f00ba',
+                               '#f1e77e', '#e9d28d', '#dfbd99', '#d5a8a2',
+                               '#ca94a7', '#bf80a9', '#b46ba8', '#a957a2',
+                               '#9f4196', '#972a81', '#8f0b5d', '#810000'),
+                    guide = "none") +
+  labs(x = 'Number of vehicles & starships piloted',
+       y = "",
+       title = "Which character commanded in the vehicle / starship space?")
+```
+
+```{r}
+starwars %>% 
+  filter(name %in% c('Han Solo', 'Luke Skywalker', 'Leia Organa')) %>%  
+  unnest(starships)
+```
+
+
+```{r}
+dbDisconnect(con)
+```
+
+

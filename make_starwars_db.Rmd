@@ -1,0 +1,333 @@
+---
+title: "Make DB from starwars dataset"
+author: "Vebash Naidoo"
+date: "29/12/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 999)
+library(tidyverse)
+```
+
+## Setup a MySQL local server
+
+1. Go to [mysql page](https://dev.mysql.com/downloads/) to download the appropriate server for you. I am on a Windows machine so I used the _MySQL Installer for Windows__.
+1. Run through the setup.
+1. Follow the setup steps - I installed a "Full version".
+1. If you did not setup your "root" user during the setup (this happened to me) open the `MySQL Installer` from your `Startup Menu`.
+
+    a. Click `Reconfigure` next to __MySQL Server__.
+    a. Check `Show Advanced and Logging Options`.
+    a. Click __Next >__ to navigate the setup, which will include asking you to setup a password for root.
+
+1. I opened `MySQL Workbench` and setup a user named `admin`, after connecting to the local host.
+1. I created a __"schema"__ by clicking on the little Database icon in `MySQL Workbench`
+
+    a. Link is "Create a new schema in the connected server". 
+    a. Alternately in the `MySQL Command Line Client` run:
+    
+      > CREATE DATABASE starwars CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+
+
+That's it for the MySQL Workbench itself.
+
+## Let's create tables from the dplyr::starwars data
+
+Here, I am just pulling apart the different parts of the starwars data to create mini tables instead of one dataframe.
+
+For example, I want a table with all the film names, one with all the vehicle names etc. instead of these as embedded lists.
+
+```{r, eval = TRUE, echo = FALSE}
+# data(package = "dplyr")
+# starwars %>% 
+#   View()
+
+(films <- starwars %>%  
+  # get the films column which contains lists of values
+  select(films) %>% 
+  # flatten the films list - this will create multiple rows for
+  # each film in the list
+  unnest(films) %>% 
+  # get rid of duplicates
+  distinct() )
+
+film_years <- tribble(~name,      ~year,
+        #-----------#------
+        "The Empire Strikes Back", 1980,
+        "Revenge of the Sith", 2005,
+        "Return of the Jedi", 1983,
+        "A New Hope", 1977,
+        "The Force Awakens", 2015,
+        "Attack of the Clones", 2002,
+        "The Phantom Menace", 1999)
+
+films <- films %>% 
+  inner_join(film_years,
+             by = c("films" = "name"))
+
+film_levels <- c("The Phantom Menace", "Attack of the Clones", "Revenge of the Sith",
+                 "A New Hope", "The Empire Strikes Back", "Return of the Jedi",
+                 "The Force Awakens")
+films <- films %>% 
+  mutate(films = factor(films, film_levels),) %>% 
+  # create an id column - we will use this later
+  # the .before just says I want the id column to come before the films column
+  mutate(id = as.integer(films), .before = "films") %>% 
+  arrange(id)
+
+(vehicles <- starwars %>%  
+  # do the same for vehicles
+  select(vehicles) %>% 
+  unnest(vehicles) %>% 
+  distinct() %>% 
+  mutate(id = row_number(), .before = "vehicles"))
+
+(starships <- starwars %>%  
+  # do the same for starships
+  select(starships) %>% 
+  unnest(starships) %>% 
+  distinct() %>% 
+  # create an id column - we will use this later
+  # the .before just says I want the id column to come before the starships column
+  # since only 2 columns I will have an id then starships column in this table
+  mutate(id = row_number(), .before = "starships"))
+
+appearances <- starwars %>% 
+  # let's save the characters appearances in the movies
+  select(name, films) %>% 
+  # we end up with character_name film for every film the character appears in
+  unnest(films) %>%
+  # join it with our new films table
+  inner_join(films) %>% 
+  # select the id which we rename to film_id, and then the name of the character
+  select(film_id = id, name)
+
+vehicles_piloted <- starwars %>% 
+  select(name, vehicles) %>% 
+  unnest(vehicles) %>% 
+  inner_join(vehicles) %>% 
+  select(vehicle_id = id, name)
+
+starships_piloted <- starwars %>% 
+  select(name, starships) %>% 
+  unnest(starships) %>% 
+  inner_join(starships) %>% 
+  select(starship_id = id, name)
+
+characters <- starwars %>% 
+  # let's get only the non-list columns
+  select(name:species)
+```
+
+### 2018 TidyTuesday Star Wars Survey Data
+
+We have some data from a TidyTuesday dataset in [2018 Week 7](https://github.com/rfordatascience/tidytuesday/tree/master/data/2018/2018-05-14).
+
+Let's see if we can incorporate some of that data as well.
+
+```{r}
+# Read just the first 2 header lines so we can create better column names
+starwars_survey_header <- read_csv("week7_starwars.csv", n_max = 2, 
+                                col_names = FALSE)
+
+# The headers are quite messy
+# Following this blog post entry let's try and clean 'em up
+# https://debruine.github.io/posts/multi-row-headers/
+starwars_survey_header <- starwars_survey_header %>% 
+  # transpose
+  t() %>% 
+  as_tibble() %>%
+  # fill NAs with last non-NA value
+  fill(V1, .direction = "down") %>% 
+  # combine the V1 and V2 cols
+  mutate(name = paste(V1, V2, sep = " ")) %>% 
+  pull(name) %>% 
+  # get rid of extra whitespace wherever it may be in the string
+  str_squish() %>% 
+  as_tibble() %>% 
+  # the column = value, here we rename to "name"
+  rename(name = "value") %>% 
+  # many fields have an extra "Response" - we'll remove this
+  mutate(name = str_remove_all(name, "Response")) %>% 
+  # The main name cleaning - shorten names, prep to match the character names
+  # in the starwars dataset
+  mutate(name = case_when(
+    str_detect(name, "RespondentID NA") ~ 
+      "respondent_id",
+    str_detect(name, "Have you seen any of the 6 films in the Star Wars franchise\\?") ~ 
+      "any_of_6",
+    str_detect(name, "Do you consider yourself to be a fan of the Star Wars film franchise\\?") ~
+      "star_wars_fan",
+    str_detect(name, "Which of the following Star Wars films have you seen\\? Please select all that apply. Star Wars: Episode [IV]+ ") ~ 
+      str_replace(name, 
+        "Which of the following Star Wars films have you seen\\? Please select all that apply. Star Wars: Episode [IV]+ ", 
+        "watched_"),
+    str_detect(name, "Please rank the Star Wars films in order of preference with 1 being your favorite film in the franchise and 6 being your least favorite film. Star Wars: Episode [IV]+ ") ~ 
+      str_replace(name, 
+        "Please rank the Star Wars films in order of preference with 1 being your favorite film in the franchise and 6 being your least favorite film. Star Wars: Episode [IV]+ ", 
+        "rank_"),
+    str_detect(name, "Please state whether you view the following characters favorably, unfavorably, or are unfamiliar with him/her. ") ~ 
+      str_replace(name, 
+        "Please state whether you view the following characters favorably, unfavorably, or are unfamiliar with him/her. ", 
+        ""),
+    str_detect(name, "Which character shot first\\?") ~ 
+      "who_shot_first",
+    str_detect(name, "Are you familiar with the Expanded Universe?") ~ 
+      "know_expanded_universe",
+    str_detect(name, "Do you consider yourself to be a fan of the Expanded Universe\\?") ~
+      "fan_expanded_universe",
+    str_detect(name, "Do you consider yourself to be a fan of the Star Trek franchise\\?") ~
+      "trekkie",
+    # These don't seem to work, so we will again clean up later
+    # I am still unsure what's wrong here so kept in to dissect later
+    str_detect(name, "Princess") ~ 
+      str_replace(name, "Princess ", ""),
+    str_detect(name, "Obi Wan") ~ 
+      "Obi-Wan Kenobi",
+    str_detect(name, "Emperor") ~ 
+      str_replace(name, "Emperor ", ""),
+    str_detect(name, "R2 D2") ~ 
+      "R2-D2",
+    TRUE ~ name
+  )) %>% 
+  pull(name) %>% 
+  str_squish()
+
+# Read the data, skipping the column names
+starwars_survey <- read_csv("week7_starwars.csv", skip = 2, 
+                                col_names = FALSE)
+
+# reset column names to the cleaned version names
+names(starwars_survey) <- starwars_survey_header
+
+# starwars_survey %>% View()
+
+svy_levels <-  c("Very unfavorably", "Somewhat unfavorably", 
+                    "Neither favorably nor unfavorably (neutral)",
+                    "Somewhat favorably", "Very favorably",
+                    "Unfamiliar (N/A)")
+
+survey_levels <- starwars_survey %>% 
+  # We're going to create a table for the levels of the survey answers
+  select(level = `Han Solo`) %>% 
+  distinct() %>% 
+  drop_na() %>% 
+  mutate(level = factor(level, levels = svy_levels),
+         id = as.integer(level)) %>% 
+  select(id, level)
+
+character_survey <- starwars_survey %>% 
+  select(respondent_id, `Han Solo`:`Yoda`) %>% 
+  mutate(across(c(`Han Solo`:`Yoda`), ~factor(., levels = svy_levels))) %>% 
+  mutate(across(c(`Han Solo`:`Yoda`), ~as.integer(.)))
+  
+
+starwars_survey <- 
+  starwars_survey %>% 
+  mutate(across(c(starts_with("watched_")), 
+                ~if_else(is.na(.), "No", "Yes"))) %>% 
+  select(-c(`Han Solo`:`Yoda`)) %>% 
+  left_join(character_survey,
+            by = c("respondent_id" = "respondent_id")) %>% 
+  # fix names
+  rename("Leia Organa" = "Princess Leia Organa") %>% 
+  rename("Obi-Wan Kenobi" = "Obi Wan Kenobi") %>% 
+  rename("Palpatine" = "Emperor Palpatine") %>% 
+  rename("R2-D2" = "R2 D2") %>% 
+  # reorder cols
+  select(respondent_id:`rank_Return of the Jedi`,
+        `Han Solo`:`Yoda`,
+        everything())
+```
+
+We also had some information about the franchise income.
+
+```{r}
+media_franchises <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-02/media_franchises.csv")
+
+# Get name of franchise
+media_franchises %>% 
+  count(franchise, sort = TRUE)
+
+# Filter info for Star Wars
+star_wars_franchise_info <- media_franchises %>% 
+  filter(franchise == "Star Wars") %>% 
+  rename(revenue_billion_dollars = revenue) # keep note that revenue is in $ bil
+```
+
+
+```{r}
+library(DBI)
+# install.packages("RMariaDB")
+library(RMariaDB)
+
+# Make a connection
+con <- dbConnect(odbc::odbc(), 
+  .connection_string = "Driver={MySQL ODBC 8.0 Unicode Driver};Server=localhost;Port=3306;Database=starwars;Uid=admin;Pwd=Luke1@my0urf@ther;", 
+    timeout = 10)
+
+# What tables do we have? Should be none or character(0)
+# when you first connect after creating the DB Shell
+dbListTables(con)
+```
+
+Alternately we can use the driver.
+
+```{r, eval = FALSE}
+# Alternate way to make a connection
+con <- dbConnect(drv = RMariaDB::MariaDB(), 
+                 host = "localhost", 
+                 port = "3306",
+                 user = "admin", 
+                 password = "Luke1@my0urf@ther",
+                 dbname = "starwars")
+dbListTables(con)
+dbDisconnect(con)
+```
+
+```{r}
+# Let's write all our dataframes to tables
+# Using our connection, write to the table "characters"
+DBI::dbWriteTable(conn = con, "characters", 
+                  # What must be written? - The characters dataframe
+                  # If the table exists I want you to wipe its contents
+                  # and replace with content from my df characters 
+                  characters, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "films",
+                  films, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "vehicles",
+                  vehicles, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "starships",
+                  starships, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "appearances",
+                  appearances, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "vehicles_piloted",
+                  vehicles_piloted, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "starships_piloted",
+                  starships_piloted, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "franchise",
+                  star_wars_franchise_info, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "survey_levels",
+                  survey_levels, overwrite = TRUE)
+DBI::dbWriteTable(conn = con, "survey",
+                  starwars_survey, overwrite = TRUE)
+```
+
+
+```{r}
+# Okay what tables do we have now?
+dbListTables(con)
+
+# Let's confirm we have some data ...
+tbl(con, "films")
+tbl(con, "survey")
+
+# Good housekeeping - disconnect
+dbDisconnect(con)
+```
+
+

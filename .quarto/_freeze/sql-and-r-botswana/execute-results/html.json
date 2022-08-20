@@ -1,0 +1,20 @@
+{
+  "hash": "498de331c84cda63751c255991652a2c",
+  "result": {
+    "markdown": "---\nformat: \n  revealjs:\n    mainfont: Open Sans\n    slide-number: c/t\n    width: 1600\n    height: 900\n    logo: \"images/hex-R-Ladies Jozi - genart pic - small.png\"\n    footer: \"[Sciencificity Blog](https://sciencificity-blog.netlify.app/posts/2020-12-12-using-the-tidyverse-with-databases/)\"\n    theme: [theme/my-theme.scss]\n    echo: true\n    smaller: false\n    scrollable: true\ntitle-slide-attributes:\n      data-background-image: images/sangga-rima-roman-selia-LWfFfA5U5z8-unsplash.jpg\n      data-background-size: contain     \neditor: source\n---\n\n\n\n# SQL AND TIDYVERSE - A MATCH MADE FOR YOU {background-image=\"images/sangga-rima-roman-selia-LWfFfA5U5z8-unsplash.jpg\" background-size=\"cover\" background-color=\"#4f6952\"}\n\n<!-- Photo by <a href=\"https://unsplash.com/@project2204?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText\">Leif Christoph Gottwald</a> on <a href=\"https://unsplash.com/s/photos/database?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText\">Unsplash</a>\n\nPhoto by <a href=\"https://unsplash.com/@sxy_selia?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText\">Sangga Rima Roman Selia</a> on <a href=\"https://unsplash.com/s/photos/database?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText\">Unsplash</a>\n  \n-->\n  \n\n## Quarto\n\nQuarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.\n\n\n::: {.cell}\n\n```{.r .cell-code}\n1 + 1\n```\n\n::: {.cell-output .cell-output-stdout}\n```\n[1] 2\n```\n:::\n:::\n",
+    "supporting": [
+      "sql-and-r-botswana_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {
+      "include-after-body": [
+        "\r\n<script>\r\n  // htmlwidgets need to know to resize themselves when slides are shown/hidden.\r\n  // Fire the \"slideenter\" event (handled by htmlwidgets.js) when the current\r\n  // slide changes (different for each slide format).\r\n  (function () {\r\n    function fireSlideChanged(previousSlide, currentSlide) {\r\n\r\n      // dispatch for htmlwidgets\r\n      const event = window.document.createEvent(\"Event\");\r\n      event.initEvent(\"slideenter\", true, true);\r\n      window.document.dispatchEvent(event);\r\n\r\n      // dispatch for shiny\r\n      if (window.jQuery) {\r\n        if (previousSlide) {\r\n          window.jQuery(previousSlide).trigger(\"hidden\");\r\n        }\r\n        if (currentSlide) {\r\n          window.jQuery(currentSlide).trigger(\"shown\");\r\n        }\r\n      }\r\n    }\r\n\r\n    // hookup for reveal\r\n    if (window.Reveal) {\r\n      window.Reveal.addEventListener(\"slidechanged\", function(event) {\r\n        fireSlideChanged(event.previousSlide, event.currentSlide);\r\n      });\r\n    }\r\n\r\n    // hookup for slidy\r\n    if (window.w3c_slidy) {\r\n      window.w3c_slidy.add_observer(function (slide_num) {\r\n        // slide_num starts at position 1\r\n        fireSlideChanged(null, w3c_slidy.slides[slide_num - 1]);\r\n      });\r\n    }\r\n\r\n  })();\r\n</script>\r\n\r\n"
+      ]
+    },
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Introduction to  using Databases in R, with Tidyverse tools</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Vebash Naidoo" />
+    <meta name="date" content="2022-08-20" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view/tile-view.js"></script>
+    <link href="libs/panelset/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset/panelset.js"></script>
+    <script src="libs/clipboard/clipboard.min.js"></script>
+    <link href="libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <meta name="description" content="RStudio exam"/>
+    <meta name="generator" content="xaringan and remark.js"/>
+    <meta name="github-repo" content="sciencificity"/>
+    <meta name="twitter:title" content="Introduction to Databases&lt;br&gt;in R"/>
+    <meta name="twitter:description" content="RStudio exam"/>
+    <meta name="twitter:url" content="https://..."/>
+    <meta name="twitter:image" content="images/geordanna-cordero-2Qg4y32pdCc-unsplash.jpg"/>
+    <meta name="twitter:image:alt" content="painting unsplash"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta property="og:title" content="Introduction to Databases&lt;br&gt;in R"/>
+    <meta property="og:description" content="RStudio exam"/>
+    <meta property="og:url" content="https://..."/>
+    <meta property="og:image" content="images/geordanna-cordero-2Qg4y32pdCc-unsplash.jpg"/>
+    <meta property="og:image:alt" content="painting unsplash"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:locale" content="en_US"/>
+    <link rel="stylesheet" href="assets/css/my-theme.css" type="text/css" />
+    <link rel="stylesheet" href="assets/css/my-fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+
+
+
+
+class: title-slide, left, middle
+
+# Introduction to&lt;br&gt; using Databases in R,&lt;br&gt;with Tidyverse tools
+
+## Working directly in a database
+
+### Vebash Naidoo
+
+---
+
+name: clouds
+background-image: url(images/clouds.jpg)
+background-size: cover
+class: middle, center
+
+&lt;style type="text/css"&gt;
+.panelset {
+  --panel-tab-font-family: Work Sans;
+  --panel-tab-background-color-active: #fffbe0;
+  --panel-tab-border-color-active: #023d4d;
+}
+
+.panelset .panel-tabs .panel-tab &gt; a {
+	color: #023d4d;
+}
+&lt;/style&gt;
+
+
+# Who am I?
+
+.column[
+&lt;img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/nerd.jpg" 
+              width = 300px/&gt;
+]
+
+.column[
+&lt;img style = "max-width: 60%; 
+              max-height = 60%; 
+              display:block; 
+              margin:auto" 
+              src="images/rladies.jpg" 
+              width = 300px/&gt;
+]
+
+.column[
+&lt;img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/mum.jpg" 
+              width = 300px/&gt;
+]
+
+.column[
+&lt;img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/far.jpg" 
+              width = 300px/&gt;
+]
+
+---
+
+name: clouds
+background-image: url(images/clouds.jpg)
+background-size: cover
+class: middle, center
+
+
+# Who are you?
+
+&lt;div class="flex" style="margin: 0 1em;"&gt;
+  &lt;div class="column"&gt;
+    &lt;h3&gt; You've got data in a database &lt;h3&gt;
+    &lt;img src="images/ryan-howerter-JXIFjYVbAS8-unsplash.jpg" style="width: 100%;"&gt;
+  &lt;/div&gt;
+  
+???
+
+
+  
+--
+
+   &lt;div class="column"style="margin: 0 1em;"&gt;
+    &lt;h3&gt; You know enough of the tidyverse &lt;/h3&gt;
+    &lt;img src="images/hex-tidyverse.png" style="width: 75%;"&gt;
+  &lt;/div&gt;
+  
+
+???
+
+You have good tidyverse knowledge...most especially dplyr.
+
+
+--
+
+   &lt;div class="column"style="margin: 0 1em;"&gt;
+    &lt;h3&gt; You want to flex that skill &lt;/h3&gt;
+    &lt;img src="images/will-porada-DH5183gvKUg-unsplash.jpg" style="width: 100%;"&gt;
+  &lt;/div&gt;
+  
+
+???
+
+You want to leverage that knowledge and connect directly to your database
+
+--
+
+   &lt;div class="column"style="margin: 0 1em;"&gt;
+    &lt;h3&gt; Lighter cognitive load &lt;/h3&gt; &lt;br&gt; &lt;br&gt;
+    &lt;img src="images/daniel-cheung-B7N0IjiIJYo-unsplash.jpg" style="width: 100%;"&gt;
+  &lt;/div&gt;
+  
+
+???
+
+It's hard switching context between SQL and R tidyverse. While it is good to know both sometimes in an analysis you'd like to have a lower cognitive load.
+
+---
+## SQL
+
+.pull-left[
+
+### SQL Query Format
+
+SELECT [DISTINCT] &lt;br&gt;
+FROM &lt;br&gt;
+JOIN &lt;br&gt;
+WHERE &lt;br&gt;
+GROUP BY &lt;br&gt;
+HAVING &lt;br&gt;
+ORDER BY &lt;br&gt;
+LIMIT 
+]
+
+.pull-right[
+
+### SQL EXECUTION FORMAT
+1. FROM &lt;br&gt;
+2. JOIN &lt;br&gt;
+3. WHERE &lt;br&gt;
+4. GROUP BY&lt;br&gt;
+5. HAVING &lt;br&gt;
+6. SELECT &lt;br&gt;
+7. DISTINCT &lt;br&gt;
+8. ORDER BY &lt;br&gt;
+9. LIMIT &lt;br&gt;
+]
+
+---
+&lt;style type="text/css"&gt;
+.show-only-last-code-result pre + pre:not(:last-of-type) code[class="remark-code"] {
+    display: none;
+}
+&lt;/style&gt;
+
+## Tidyverse Quick Knowledge Check
+
+.panelset[
+.panel[.panel-name[Explain this]
+
+Do you understand what this piece of code is doing? Please think about it for a minute, and make a choice on the next tab and pop it in the chat.
+
+
+```r
+palmerpenguins::penguins %&gt;% 
+  select(species, sex, flipper_length_mm) %&gt;%
+  drop_na() %&gt;% 
+  group_by(species, sex) %&gt;% 
+  summarise(avg_flipper_len = mean(flipper_length_mm))
+```
+]
+
+  &lt;div class="panel"&gt;
+    &lt;div class="panel-name"&gt;Options&lt;/div&gt;
+    &lt;ol&gt;
+    &lt;li&gt;&lt;p&gt;Returns only the average flipper length of each &lt;code&gt;species&lt;/code&gt;.&lt;/p&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;p&gt;Returns the entire dataset, with the average flipper length&lt;br&gt;
+      of the &lt;code&gt;species&lt;/code&gt;, tagged on as new column.&lt;/p&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;p&gt; It returns the average flipper length split by &lt;code&gt;species&lt;/code&gt; and &lt;code&gt;sex&lt;/code&gt;. 
+      Only observations which have values for species, sex and flipper_length_mm are included.&lt;/p&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;p&gt;It gives an error because it should be summari&lt;strong&gt;z&lt;/strong&gt;e() not summari&lt;strong&gt;s&lt;/strong&gt;e().&lt;/p&gt;&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/div&gt;
+
+.panel[.panel-name[Solution]
+
+.left-code[
+The answer is `3`. It returns the average flipper length split by &lt;code&gt;species&lt;/code&gt; and &lt;code&gt;sex&lt;/code&gt;. 
+      Only non-NA observations are included.
+
+
+```r
+palmerpenguins::penguins %&gt;% 
+  select(species, sex, 
+         flipper_length_mm) %&gt;%
+  drop_na() %&gt;% 
+  group_by(species, sex) %&gt;% 
+  summarise(avg_flipper_len =
+      mean(flipper_length_mm))
+  
+```
+]
+
+.right-out[
+
+
+```
+## `summarise()` has grouped output by 'species'. You can override using the `.groups` argument.
+## # A tibble: 6 x 3
+## # Groups:   species [3]
+##   species   sex    avg_flipper_len
+##   &lt;fct&gt;     &lt;fct&gt;            &lt;dbl&gt;
+## 1 Adelie    female            188.
+## 2 Adelie    male              192.
+## 3 Chinstrap female            192.
+## 4 Chinstrap male              200.
+## 5 Gentoo    female            213.
+## 6 Gentoo    male              222.
+```
+
+]
+
+]
+]
+
+---
+
+## Tidyverse Equivalents
+
+.pull-left[
+
+### SQL EXECUTION FORMAT
+1. FROM &lt;br&gt;
+2. JOIN &lt;br&gt;
+3. WHERE &lt;br&gt;
+4. GROUP BY&lt;br&gt;
+5. HAVING &lt;br&gt;
+6. SELECT &lt;br&gt;
+7. DISTINCT &lt;br&gt;
+8. ORDER BY &lt;br&gt;
+]
+
+.pull-right[
+### TIDYVERSE VERBS
+1. Table Name / Dataframe Piped (&lt;code&gt;%&gt;%&lt;/code&gt;) Into functions below &lt;br&gt;
+2. inner_join()/left_join() etc.&lt;br&gt;
+3. filter(some_condition)&lt;br&gt;
+4. group_by(some_criteria)&lt;br&gt;
+5. filter(some_condition)&lt;br&gt;
+6. select(a few or all columns)/ mutate() / count() / summarise() &lt;br&gt;
+7. distinct(specific or all rows)&lt;br&gt;
+8. arrange(some_columns)&lt;br&gt;
+]
+
+---
+## What are we going to cover?
+
+- Connect to a SQLite Database.
+- Use &lt;code&gt;dplyr&lt;/code&gt; verbs to explore and interact with data in the database.
+- Transfer computation to the SQL engine.
+- Run SQL code directly on the DB.
+- Figure out the equivalent dplyr code from SQL query.
+---
+
+### Connecting to a Database
+
+.panelset[
+.panel[.panel-name[Overall]
+
+- Install the `DBI` package.
+- The `DBI` package is a __D__ata__Base__ __I__nterface for R.
+- Install the `odbc` package.
+- The `odbc` package is a DBI compliant interface to __O__pen __D__ata__B__ase __C__onnectivity (ODBC) drivers.
+- Install the `dbplyr` package which is a dplyr back-end for databases.
+
+
+```r
+install.packages("DBI")
+install.packages("odbc")
+install.packages("dbplyr")
+```
+]
+
+.panel[.panel-name[SQLite]
+
+- Install the `RSQLite` package.
+
+.tiny[
+
+```r
+install.packages("RSQLite")
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()`, providing two arguments: 
+  
+  * `drv`: The driver we're using, here `RSQLite::SQLite()`.
+  * A path to the DB - the example here uses `:memory:` which is an in memory SQLite DB.
+  
+.tiny[
+
+```r
+library(DBI)
+# Create an in-memory RSQLite DB
+con &lt;- dbConnect(RSQLite::SQLite(), ":memory:")
+# List tables available through our connection
+dbListTables(con) # nothing there yet -&gt; character(0)
+```
+]
+]
+
+.panel[.panel-name[Using an DBI-compliant R 📦]
+
+- Install the DBI-compliant R 📦
+- We'll use the `RPostgres` 📦 as an example here (similar process for `RMariaDB` etc.).
+
+.tiny[
+
+```r
+install.packages("RPostgres")
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()` as before, this time providing more info such as user name, password, host name etc. 
+
+.tiny[
+
+```r
+con &lt;- dbConnect(drv = RPostgres::Postgres(), # driver we're using this time
+    dbname = "DB_name", 
+    host = "URL_or_localhost",
+    user = "user_name", 
+    password = "pswd",
+    port = "5432" # common port for PostgreSQL, but check with DBA
+)
+```
+]
+]
+
+.panel[.panel-name[Using an odbc driver]
+
+- You can download the ODBC driver from your database vendor's website.
+- List the drivers you have available using `odbcListDrivers()`.
+
+.tiny[
+
+```r
+library(odbc)
+sort(unique(odbcListDrivers()[[1]]))
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()` as before, this time through the applicable `odbc` driver. 
+
+.tiny[
+
+```r
+con &lt;- dbConnect(
+    odbc::odbc(),
+    Driver = "e.g.PostgreSQL ODBC Driver(UNICODE)",
+    Database = "DB_name",
+    Server = "URL_or_localhost",
+    UID = "user_name",
+    PWD = "pswd",
+    port = "5432"
+)
+```
+]
+]
+]
+
+
+???
+- The `RSQLite` package embeds a SQLite database engine in R, and is a DBI-compliant interface.
+
+---
+
+### We're connected, now what?
+
+.panelset[
+.panel[.panel-name[Have a look around]
+
+Recall we connected using &lt;code&gt;con &lt;- dbConnect(RSQLite::SQLite(), ":memory:")&lt;/code&gt;
+.pull-left[
+- Write data into a database table
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt;
+- List all tables
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt;
+- List the fields in a particular table
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt;
+]
+.pull-right[
+.tiny[
+
+```r
+dbWriteTable(con, # using connection con
+    "mtcars", # write into a table "mtcars"
+     mtcars, # the dataset mtcars
+     overwrite = TRUE # overwrite the data there if it exists
+     )
+```
+]
+
+.tiny[
+
+```r
+dbListTables(con)
+## [1] "mtcars"
+```
+]
+
+.tiny[
+
+```r
+dbListFields(con, "mtcars")
+##  [1] "mpg"  "cyl"  "disp" "hp"   "drat" 
+# "wt"   "qsec" "vs"   "am"   "gear"
+## [11] "carb"
+```
+]
+]
+
+]
+
+.panel[.panel-name[Use `dplyr` pipelines]
+
+.pull-left[
+- Connect to table &lt;span style="color: #008080;background-color:#9FDDBA"&gt;tbl(con, "tbl_name")&lt;/span&gt; 
+
+- Select subsets of data
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt;
+- Anayse data
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt;
+- Filter data
+&lt;br&gt; &lt;br&gt;
+]
+.pull-right[
+.tiny[
+
+```r
+tbl(con, # using our connection
+    'mtcars' # reach into the mtcars table
+    ) %&gt;% 
+  select(cyl) %&gt;%  distinct()
+# Source:   lazy query [?? x 1]
+# Database: sqlite 3.33.0 [:memory:]
+#     cyl
+# 1     6 ...
+```
+]
+
+.tiny[
+
+```r
+tbl(con, "mtcars") %&gt;% 
+  count(cyl) 
+#     cyl     n
+#   &lt;dbl&gt; &lt;int&gt;
+# 1     4    11
+# 2     6     7 ...
+```
+]
+
+.tiny[
+
+```r
+tbl(con, "mtcars") %&gt;% 
+  filter(am == 0) 
+```
+]
+]
+
+]
+
+.panel[.panel-name[More `dplyr`]
+
+.pull-left[
+- Join tables from your database &lt;span style="color: #FFE4E1;background-color:#FD5800"&gt;NOTE: tbl(con, "tbl_name1") and tbl(con, "tbl_name2")&lt;/span&gt;. 
+
+&lt;br&gt; &lt;br&gt; 
+- What's the SQL Looking like?
+&lt;br&gt; &lt;br&gt; &lt;br&gt; &lt;br&gt; 
+]
+.pull-right[
+.tiny[
+
+```r
+tbl(con, "tbl_name1") %&gt;% 
+  left_join(tbl(con, "tbl_name2"),
+      by = c("col1" = "name_1",
+             "coln" = "name_n")
+```
+]
+
+.tiny[
+
+```r
+tbl(con, "mtcars") %&gt;% 
+  count(cyl) %&gt;% 
+  show_query()
+# &lt;SQL&gt;
+# SELECT `cyl`, COUNT(*) AS `n`
+# FROM `mtcars`
+# GROUP BY `cyl`
+```
+]
+
+]
+
+]
+.panel[.panel-name[SQL]
+````sql
+```{{sql connection = con, eval = FALSE}}
+  -- Comment
+  SELECT DISTINCT(cyl)
+  FROM mtcars
+```
+````
+]
+
+]
+
+---
+
+### Always remember to ... 
+
+- Collect your data only when you need to (close to the end).
+
+
+```r
+my_db_mtcars &lt;- tbl(con, "mtcars") %&gt;% 
+  count(cyl) %&gt;% 
+  collect() # finally bringing data into R
+```
+
+- Disconnect when you're done!
+
+
+```r
+dbDisconnect(con)
+```
+
+---
+### Let's take stock
+
+.panelset[
+.panel[.panel-name[Unscramble this]
+
+1. dbWriteTable(con, "band_members", dplyr::band_members)
+1. library(DBI)
+1. dbListFields(con, "band_members")
+1. dbDisconnect(con)
+1. con &lt;- dbConnect(RSQLite::SQLite(), ":memory:")
+1. tbl(con, "band_members")
+
+]
+
+.panel[.panel-name[Solution]
+.pull-left[
+2: library(DBI) &lt;br&gt;
+5: con &lt;- dbConnect(RSQLite::SQLite(), ":memory:")&lt;br&gt;
+1: dbWriteTable(con, "band_members", dplyr::band_members)&lt;br&gt;
+3: dbListFields(con, "band_members")&lt;br&gt;
+6: tbl(con, "band_members")&lt;br&gt;
+4: dbDisconnect(con)
+]
+
+.pull-right[
+.tiny[
+
+```r
+library(DBI)
+con &lt;- dbConnect(RSQLite::SQLite(), ":memory:")
+dbWriteTable(con, "band_members", dplyr::band_members)
+dbListFields(con, "band_members")
+## [1] "name" "band"
+tbl(con, "band_members")
+## # Source:   table&lt;band_members&gt; [?? x 2]
+## # Database: sqlite 3.36.0 [:memory:]
+##   name  band   
+##   &lt;chr&gt; &lt;chr&gt;  
+## 1 Mick  Stones 
+## 2 John  Beatles
+## 3 Paul  Beatles
+dbDisconnect(con)
+```
+]
+]
+]
+
+]
+
+---
+background-image: url(images/neven-krcmarek-0TH1H1rq_eY-unsplash.jpg)
+background-position: 1000px 20px
+background-size: 200px 100px
+
+### Our dataset
+
+.panelset[
+.panel[.panel-name[The Great British Bake off]
+
+Alison Hill has put together some data from the Great British Bake off [here](https://github.com/apreshill/bakeoff).
+
+I converted it to a SQLite DB that we can use to practise our skills on.
+
+.pull-left[
+.tiny[
+
+
+
+```r
+tbl(con, "baker_results") %&gt;% 
+  select(series, baker,
+    star_baker:technical_top3) %&gt;% 
+  head(3)
+## # Source:   lazy query [?? x 5]
+## # Database: sqlite 3.36.0
+## #   [C:\Current-Work\prep-db-talk\saf-workshop-r-and-sql\great_brit_bakeoff.db]
+##   series baker   star_baker technical_winner technical_top3
+##    &lt;dbl&gt; &lt;chr&gt;        &lt;int&gt;            &lt;int&gt;          &lt;int&gt;
+## 1      1 Annetha          0                0              1
+## 2      1 David            0                0              1
+## 3      1 Edd              0                2              4
+```
+]
+]
+
+.pull-right[
+.tiny[
+
+```r
+tbl(con, "results") %&gt;% 
+  select(series, baker, result) %&gt;% 
+  filter(result == "WINNER") %&gt;% 
+  head(3)
+## # Source:   lazy query [?? x 3]
+## # Database: sqlite 3.36.0
+## #   [C:\Current-Work\prep-db-talk\saf-workshop-r-and-sql\great_brit_bakeoff.db]
+##   series baker  result
+##    &lt;int&gt; &lt;chr&gt;  &lt;chr&gt; 
+## 1      1 Edd    WINNER
+## 2      2 Joanne WINNER
+## 3      3 John   WINNER
+```
+]
+]
+]
+
+.panel[.panel-name[Create a connection]
+
+.pull-left[
+
+- It is a SQLite DB in your working directory.
+- It is named `great_brit_bakeoff.db`
+
+Which code will make the connection?
+
+a.
+
+.tiny[
+
+```r
+library(DBI)
+con &lt;- dbConnect(
+    drv = RSQLite::SQLite(),
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+
+]
+.pull-right[
+
+b. 
+
+.tiny[
+
+```r
+library(DBI)
+con &lt;- dbConnect(
+    drv = RSQLite::SQLite(),
+    user = "admin", password = "password",
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+
+c. 
+
+.tiny[
+
+```r
+library(DBI)
+con &lt;- dbConnect(
+    drv = RPostgres::Postgres(), host = "localhost",
+    user = "admin", password = "password",
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+]
+
+]
+
+.panel[.panel-name[Your Turn]
+
+Open up `exercise-01.Rmd` and:
+
+1. Complete the connection code.
+1. Recalling that we are joining the `baker_results` and the `results` tables, complete the join code.
+1. Amend `eval = FALSE` in the __setup__ code chunk to `eval = TRUE`.
+1. Knit the document.
+1. Interested in a different __winner__? Fill in the code to view how your baker performed across the season.
+
+
+]
+
+]
+
+---
+
+background-image: url(images/faria-anzum-ONK9IlKizS4-unsplash.jpg)
+background-position: right
+background-size: 300px 400px
+
+## Acknowledgements 
+
+#### Slides inspired by Dr. Alison Hill 
+[Teaching in Production](https://rstudio-education.github.io/teaching-in-production/)
+
+#### Yihui Xie's and Garrick Aden-Buie's excellent
+[xaringan](https://github.com/yihui/xaringan) 📦  [xaringanExtra](https://github.com/gadenbuie/xaringanExtra) 📦
+
+#### Mine Çetinkaya-Rundel "Start with Cake"
+[Let them eat cake (first)!](https://www.youtube.com/watch?v=RsVOrpXAPXo&amp;feature=emb_logo)
+
+---
+background-image: url(images/markus-spiske-8CWoXxaqGrs-unsplash.jpg)
+background-position: 800px 20px
+background-size: 300px 200px
+
+## More Resources
+
+#### Looking for more practise
+
+Check out:
+
+1. [Databases using R](https://db.rstudio.com/) 🎉 💗.
+1. I have a package called [reclues](https://github.com/sciencificity/reclues) which contains a database which mimics the SQL Murder Mystery done by [Northwestern’s Knight Lab](https://github.com/NUKnightLab/sql-mysteries). The 📦 [site is here](https://sciencificity.github.io/reclues/).
+
+1. I included the SQL Create scripts in the scripts folder - you can make a PostgreSQL version of `The Great British Bake Off` data to practise on 😄 🎂.
+
+
+---
+
+name: goodbye
+class: right, middle
+background-image: url(images/nathan-dumlao-KMEqlxz3mKc-unsplash.jpg)
+background-size: cover
+
+
+&lt;img style="border-radius: 75%;" src="images/thank_you1.jpg" width="250px"/&gt;
+
+# Thank you!
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"slideNumberFormat": "<div class=\"progress-bar-container\">\n  <div class=\"progress-bar\" style=\"width: calc(%current% / %total% * 100%);\">\n  </div>\n</div>\n",
+"highlightStyle": "solarized-light",
+"highlightLanguage": ["r", "css", "yaml"],
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

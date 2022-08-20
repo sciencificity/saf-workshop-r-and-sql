@@ -1,0 +1,777 @@
+---
+title: "Introduction to<br> using Databases in R,<br>with Tidyverse tools"
+subtitle: "Working directly in a database"
+author: Vebash Naidoo
+date: "`r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    css: ["default", "assets/css/my-theme.css", "assets/css/my-fonts.css"]
+    seal: false 
+    lib_dir: libs
+    nature:
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);">
+          </div>
+        </div>
+      highlightStyle: solarized-light
+      highlightLanguage: ["r", "css", "yaml"]
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(collapse = TRUE,
+                      fig.retina = 3)
+
+library(ymlthis)
+library(tidyverse)
+library(xaringanExtra)
+xaringanExtra::use_xaringan_extra(include = c("panelset", "tile_view", "share_again"))
+xaringanExtra::use_share_again()
+xaringanExtra::style_share_again(
+  share_buttons = c("twitter", "linkedin", "pocket")
+)
+```
+
+```{r meta, echo=FALSE}
+library(metathis)
+meta() %>%
+  meta_general(
+    description = "RStudio exam",
+    generator = "xaringan and remark.js"
+  ) %>% 
+  meta_name("github-repo" = "sciencificity") %>% 
+  meta_social(
+    title = "Introduction to Databases<br>in R",
+    url = "https://...",
+    image = "images/geordanna-cordero-2Qg4y32pdCc-unsplash.jpg",
+    image_alt = "painting unsplash",
+    og_type = "website",
+    twitter_card_type = "summary_large_image"
+  )
+```
+
+
+class: title-slide, left, middle
+
+# `r rmarkdown::metadata$title`
+
+## `r rmarkdown::metadata$subtitle`
+
+### `r rmarkdown::metadata$author`
+
+---
+
+name: clouds
+background-image: url(images/clouds.jpg)
+background-size: cover
+class: middle, center
+
+```{css, echo=FALSE}
+.panelset {
+  --panel-tab-font-family: Work Sans;
+  --panel-tab-background-color-active: #fffbe0;
+  --panel-tab-border-color-active: #023d4d;
+}
+
+.panelset .panel-tabs .panel-tab > a {
+	color: #023d4d;
+}
+```
+
+
+# Who am I?
+
+.column[
+<img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/nerd.jpg" 
+              width = 300px/>
+]
+
+.column[
+<img style = "max-width: 60%; 
+              max-height = 60%; 
+              display:block; 
+              margin:auto" 
+              src="images/rladies.jpg" 
+              width = 300px/>
+]
+
+.column[
+<img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/mum.jpg" 
+              width = 300px/>
+]
+
+.column[
+<img style = "max-width: 70%; 
+              max-height = 70%; 
+              display:block; 
+              margin:auto" 
+              src="images/far.jpg" 
+              width = 300px/>
+]
+
+---
+
+name: clouds
+background-image: url(images/clouds.jpg)
+background-size: cover
+class: middle, center
+
+
+# Who are you?
+
+<div class="flex" style="margin: 0 1em;">
+  <div class="column">
+    <h3> You've got data in a database <h3>
+    <img src="images/ryan-howerter-JXIFjYVbAS8-unsplash.jpg" style="width: 100%;">
+  </div>
+  
+???
+
+
+  
+--
+
+   <div class="column"style="margin: 0 1em;">
+    <h3> You know enough of the tidyverse </h3>
+    <img src="images/hex-tidyverse.png" style="width: 75%;">
+  </div>
+  
+
+???
+
+You have good tidyverse knowledge...most especially dplyr.
+
+
+--
+
+   <div class="column"style="margin: 0 1em;">
+    <h3> You want to flex that skill </h3>
+    <img src="images/will-porada-DH5183gvKUg-unsplash.jpg" style="width: 100%;">
+  </div>
+  
+
+???
+
+You want to leverage that knowledge and connect directly to your database
+
+--
+
+   <div class="column"style="margin: 0 1em;">
+    <h3> Lighter cognitive load </h3> <br> <br>
+    <img src="images/daniel-cheung-B7N0IjiIJYo-unsplash.jpg" style="width: 100%;">
+  </div>
+  
+
+???
+
+It's hard switching context between SQL and R tidyverse. While it is good to know both sometimes in an analysis you'd like to have a lower cognitive load.
+
+---
+## SQL
+
+.pull-left[
+
+### SQL Query Format
+
+SELECT [DISTINCT] <br>
+FROM <br>
+JOIN <br>
+WHERE <br>
+GROUP BY <br>
+HAVING <br>
+ORDER BY <br>
+LIMIT 
+]
+
+.pull-right[
+
+### SQL EXECUTION FORMAT
+1. FROM <br>
+2. JOIN <br>
+3. WHERE <br>
+4. GROUP BY<br>
+5. HAVING <br>
+6. SELECT <br>
+7. DISTINCT <br>
+8. ORDER BY <br>
+9. LIMIT <br>
+]
+
+---
+```{css echo=FALSE}
+.show-only-last-code-result pre + pre:not(:last-of-type) code[class="remark-code"] {
+    display: none;
+}
+```
+
+## Tidyverse Quick Knowledge Check
+
+.panelset[
+.panel[.panel-name[Explain this]
+
+Do you understand what this piece of code is doing? Please think about it for a minute, and make a choice on the next tab and pop it in the chat.
+
+```{r eval=FALSE}
+palmerpenguins::penguins %>% 
+  select(species, sex, flipper_length_mm) %>%
+  drop_na() %>% 
+  group_by(species, sex) %>% 
+  summarise(avg_flipper_len = mean(flipper_length_mm))
+```
+]
+
+  <div class="panel">
+    <div class="panel-name">Options</div>
+    <ol>
+    <li><p>Returns only the average flipper length of each <code>species</code>.</p></li>
+    <li><p>Returns the entire dataset, with the average flipper length<br>
+      of the <code>species</code>, tagged on as new column.</p></li>
+    <li><p> It returns the average flipper length split by <code>species</code> and <code>sex</code>. 
+      Only observations which have values for species, sex and flipper_length_mm are included.</p></li>
+    <li><p>It gives an error because it should be summari<strong>z</strong>e() not summari<strong>s</strong>e().</p></li>
+    </ol>
+  </div>
+
+.panel[.panel-name[Solution]
+
+.left-code[
+The answer is `3`. It returns the average flipper length split by <code>species</code> and <code>sex</code>. 
+      Only non-NA observations are included.
+
+```{r increment, eval=FALSE}
+palmerpenguins::penguins %>% 
+  select(species, sex, 
+         flipper_length_mm) %>%
+  drop_na() %>% 
+  group_by(species, sex) %>% 
+  summarise(avg_flipper_len =
+      mean(flipper_length_mm))
+  
+```
+]
+
+.right-out[
+
+```{r increment-out, ref.label='increment', echo=FALSE}
+
+```
+
+]
+
+]
+]
+
+---
+
+## Tidyverse Equivalents
+
+.pull-left[
+
+### SQL EXECUTION FORMAT
+1. FROM <br>
+2. JOIN <br>
+3. WHERE <br>
+4. GROUP BY<br>
+5. HAVING <br>
+6. SELECT <br>
+7. DISTINCT <br>
+8. ORDER BY <br>
+]
+
+.pull-right[
+### TIDYVERSE VERBS
+1. Table Name / Dataframe Piped (<code>%>%</code>) Into functions below <br>
+2. inner_join()/left_join() etc.<br>
+3. filter(some_condition)<br>
+4. group_by(some_criteria)<br>
+5. filter(some_condition)<br>
+6. select(a few or all columns)/ mutate() / count() / summarise() <br>
+7. distinct(specific or all rows)<br>
+8. arrange(some_columns)<br>
+]
+
+---
+## What are we going to cover?
+
+- Connect to a SQLite Database.
+- Use <code>dplyr</code> verbs to explore and interact with data in the database.
+- Transfer computation to the SQL engine.
+- Run SQL code directly on the DB.
+- Figure out the equivalent dplyr code from SQL query.
+---
+
+### Connecting to a Database
+
+.panelset[
+.panel[.panel-name[Overall]
+
+- Install the `DBI` package.
+- The `DBI` package is a __D__ata__Base__ __I__nterface for R.
+- Install the `odbc` package.
+- The `odbc` package is a DBI compliant interface to __O__pen __D__ata__B__ase __C__onnectivity (ODBC) drivers.
+- Install the `dbplyr` package which is a dplyr back-end for databases.
+
+```{r eval=FALSE}
+install.packages("DBI")
+install.packages("odbc")
+install.packages("dbplyr")
+```
+]
+
+.panel[.panel-name[SQLite]
+
+- Install the `RSQLite` package.
+
+.tiny[
+```{r eval=FALSE}
+install.packages("RSQLite")
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()`, providing two arguments: 
+  
+  * `drv`: The driver we're using, here `RSQLite::SQLite()`.
+  * A path to the DB - the example here uses `:memory:` which is an in memory SQLite DB.
+  
+.tiny[
+```{r, eval=FALSE}
+library(DBI)
+# Create an in-memory RSQLite DB
+con <- dbConnect(RSQLite::SQLite(), ":memory:")
+# List tables available through our connection
+dbListTables(con) # nothing there yet -> character(0)
+```
+]
+]
+
+.panel[.panel-name[Using an DBI-compliant R `r emoji::emoji("package")`]
+
+- Install the DBI-compliant R `r emoji::emoji("package")`
+- We'll use the `RPostgres` `r emoji::emoji("package")` as an example here (similar process for `RMariaDB` etc.).
+
+.tiny[
+```{r eval=FALSE}
+install.packages("RPostgres")
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()` as before, this time providing more info such as user name, password, host name etc. 
+
+.tiny[
+```{r, eval = FALSE}
+con <- dbConnect(drv = RPostgres::Postgres(), # driver we're using this time
+    dbname = "DB_name", 
+    host = "URL_or_localhost",
+    user = "user_name", 
+    password = "pswd",
+    port = "5432" # common port for PostgreSQL, but check with DBA
+)
+```
+]
+]
+
+.panel[.panel-name[Using an odbc driver]
+
+- You can download the ODBC driver from your database vendor's website.
+- List the drivers you have available using `odbcListDrivers()`.
+
+.tiny[
+```{r eval=FALSE}
+library(odbc)
+sort(unique(odbcListDrivers()[[1]]))
+```
+]
+
+- We make a __connection__ to the DB, using `dbConnect()` as before, this time through the applicable `odbc` driver. 
+
+.tiny[
+```{r, eval = FALSE}
+con <- dbConnect(
+    odbc::odbc(),
+    Driver = "e.g.PostgreSQL ODBC Driver(UNICODE)",
+    Database = "DB_name",
+    Server = "URL_or_localhost",
+    UID = "user_name",
+    PWD = "pswd",
+    port = "5432"
+)
+```
+]
+]
+]
+
+
+???
+- The `RSQLite` package embeds a SQLite database engine in R, and is a DBI-compliant interface.
+
+---
+
+### We're connected, now what?
+
+.panelset[
+.panel[.panel-name[Have a look around]
+
+Recall we connected using <code>con <- dbConnect(RSQLite::SQLite(), ":memory:")</code>
+.pull-left[
+- Write data into a database table
+<br> <br> <br> <br> <br>
+- List all tables
+<br> <br> <br> <br> <br>
+- List the fields in a particular table
+<br> <br> <br> <br> <br>
+]
+.pull-right[
+.tiny[
+```{r eval=FALSE}
+dbWriteTable(con, # using connection con
+    "mtcars", # write into a table "mtcars"
+     mtcars, # the dataset mtcars
+     overwrite = TRUE # overwrite the data there if it exists
+     )
+```
+]
+
+.tiny[
+```{r eval=FALSE}
+dbListTables(con)
+## [1] "mtcars"
+```
+]
+
+.tiny[
+```{r eval=FALSE}
+dbListFields(con, "mtcars")
+##  [1] "mpg"  "cyl"  "disp" "hp"   "drat" 
+# "wt"   "qsec" "vs"   "am"   "gear"
+## [11] "carb"
+```
+]
+]
+
+]
+
+.panel[.panel-name[Use `dplyr` pipelines]
+
+.pull-left[
+- Connect to table <span style="color: #008080;background-color:#9FDDBA">tbl(con, "tbl_name")</span> 
+
+- Select subsets of data
+<br> <br> <br> <br>
+- Anayse data
+<br> <br> <br> <br> <br> <br>
+- Filter data
+<br> <br>
+]
+.pull-right[
+.tiny[
+```{r connect1, eval=FALSE}
+tbl(con, # using our connection
+    'mtcars' # reach into the mtcars table
+    ) %>% 
+  select(cyl) %>%  distinct()
+# Source:   lazy query [?? x 1]
+# Database: sqlite 3.33.0 [:memory:]
+#     cyl
+# 1     6 ...
+```
+]
+
+.tiny[
+```{r eval=FALSE}
+tbl(con, "mtcars") %>% 
+  count(cyl) 
+#     cyl     n
+#   <dbl> <int>
+# 1     4    11
+# 2     6     7 ...
+```
+]
+
+.tiny[
+```{r eval=FALSE}
+tbl(con, "mtcars") %>% 
+  filter(am == 0) 
+```
+]
+]
+
+]
+
+.panel[.panel-name[More `dplyr`]
+
+.pull-left[
+- Join tables from your database <span style="color: #FFE4E1;background-color:#FD5800">NOTE: tbl(con, "tbl_name1") and tbl(con, "tbl_name2")</span>. 
+
+<br> <br> 
+- What's the SQL Looking like?
+<br> <br> <br> <br> 
+]
+.pull-right[
+.tiny[
+```{r, eval=FALSE}
+tbl(con, "tbl_name1") %>% 
+  left_join(tbl(con, "tbl_name2"),
+      by = c("col1" = "name_1",
+             "coln" = "name_n")
+```
+]
+
+.tiny[
+```{r eval=FALSE}
+tbl(con, "mtcars") %>% 
+  count(cyl) %>% 
+  show_query()
+# <SQL>
+# SELECT `cyl`, COUNT(*) AS `n`
+# FROM `mtcars`
+# GROUP BY `cyl`
+```
+]
+
+]
+
+]
+.panel[.panel-name[SQL]
+````sql
+```{{sql connection = con, eval = FALSE}}
+  -- Comment
+  SELECT DISTINCT(cyl)
+  FROM mtcars
+```
+````
+]
+
+]
+
+---
+
+### Always remember to ... 
+
+- Collect your data only when you need to (close to the end).
+
+```{r, eval = FALSE}
+my_db_mtcars <- tbl(con, "mtcars") %>% 
+  count(cyl) %>% 
+  collect() # finally bringing data into R
+```
+
+- Disconnect when you're done!
+
+```{r, eval = FALSE}
+dbDisconnect(con)
+```
+
+---
+### Let's take stock
+
+.panelset[
+.panel[.panel-name[Unscramble this]
+
+1. dbWriteTable(con, "band_members", dplyr::band_members)
+1. library(DBI)
+1. dbListFields(con, "band_members")
+1. dbDisconnect(con)
+1. con <- dbConnect(RSQLite::SQLite(), ":memory:")
+1. tbl(con, "band_members")
+
+]
+
+.panel[.panel-name[Solution]
+.pull-left[
+2: library(DBI) <br>
+5: con <- dbConnect(RSQLite::SQLite(), ":memory:")<br>
+1: dbWriteTable(con, "band_members", dplyr::band_members)<br>
+3: dbListFields(con, "band_members")<br>
+6: tbl(con, "band_members")<br>
+4: dbDisconnect(con)
+]
+
+.pull-right[
+.tiny[
+```{r}
+library(DBI)
+con <- dbConnect(RSQLite::SQLite(), ":memory:")
+dbWriteTable(con, "band_members", dplyr::band_members)
+dbListFields(con, "band_members")
+tbl(con, "band_members")
+dbDisconnect(con)
+```
+]
+]
+]
+
+]
+
+---
+background-image: url(images/neven-krcmarek-0TH1H1rq_eY-unsplash.jpg)
+background-position: 1000px 20px
+background-size: 200px 100px
+
+### Our dataset
+
+.panelset[
+.panel[.panel-name[The Great British Bake off]
+
+Alison Hill has put together some data from the Great British Bake off [here](https://github.com/apreshill/bakeoff).
+
+I converted it to a SQLite DB that we can use to practise our skills on.
+
+.pull-left[
+.tiny[
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = TRUE}
+library(DBI)
+library(tidyverse)  
+library(dbplyr)    
+con <- dbConnect(
+    drv = RSQLite::SQLite(),
+    dbname = "great_brit_bakeoff.db"
+)
+```
+
+```{r, eval = TRUE}
+tbl(con, "baker_results") %>% 
+  select(series, baker,
+    star_baker:technical_top3) %>% 
+  head(3)
+```
+]
+]
+
+.pull-right[
+.tiny[
+```{r, eval = TRUE}
+tbl(con, "results") %>% 
+  select(series, baker, result) %>% 
+  filter(result == "WINNER") %>% 
+  head(3)
+```
+]
+]
+]
+
+.panel[.panel-name[Create a connection]
+
+.pull-left[
+
+- It is a SQLite DB in your working directory.
+- It is named `great_brit_bakeoff.db`
+
+Which code will make the connection?
+
+a.
+
+.tiny[
+```{r, echo = TRUE, eval = FALSE}
+library(DBI)
+con <- dbConnect(
+    drv = RSQLite::SQLite(),
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+
+]
+.pull-right[
+
+b. 
+
+.tiny[
+```{r, echo = TRUE, eval = FALSE}
+library(DBI)
+con <- dbConnect(
+    drv = RSQLite::SQLite(),
+    user = "admin", password = "password",
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+
+c. 
+
+.tiny[
+```{r, echo = TRUE, eval = FALSE}
+library(DBI)
+con <- dbConnect(
+    drv = RPostgres::Postgres(), host = "localhost",
+    user = "admin", password = "password",
+    dbname = "great_brit_bakeoff.db"
+)
+```
+]
+]
+
+]
+
+.panel[.panel-name[Your Turn]
+
+Open up `exercise-01.Rmd` and:
+
+1. Complete the connection code.
+1. Recalling that we are joining the `baker_results` and the `results` tables, complete the join code.
+1. Amend `eval = FALSE` in the __setup__ code chunk to `eval = TRUE`.
+1. Knit the document.
+1. Interested in a different __winner__? Fill in the code to view how your baker performed across the season.
+
+
+]
+
+]
+
+---
+
+background-image: url(images/faria-anzum-ONK9IlKizS4-unsplash.jpg)
+background-position: right
+background-size: 300px 400px
+
+## Acknowledgements 
+
+#### Slides inspired by Dr. Alison Hill 
+[Teaching in Production](https://rstudio-education.github.io/teaching-in-production/)
+
+#### Yihui Xie's and Garrick Aden-Buie's excellent
+[xaringan](https://github.com/yihui/xaringan) `r emoji::emoji("package")`  [xaringanExtra](https://github.com/gadenbuie/xaringanExtra) `r emoji::emoji("package")`
+
+#### Mine Çetinkaya-Rundel "Start with Cake"
+[Let them eat cake (first)!](https://www.youtube.com/watch?v=RsVOrpXAPXo&feature=emb_logo)
+
+---
+background-image: url(images/markus-spiske-8CWoXxaqGrs-unsplash.jpg)
+background-position: 800px 20px
+background-size: 300px 200px
+
+## More Resources
+
+#### Looking for more practise
+
+Check out:
+
+1. [Databases using R](https://db.rstudio.com/) `r emoji::emoji("tada")` `r emoji::emoji("heartpulse")`.
+1. I have a package called [reclues](https://github.com/sciencificity/reclues) which contains a database which mimics the SQL Murder Mystery done by [Northwestern’s Knight Lab](https://github.com/NUKnightLab/sql-mysteries). The `r emoji::emoji("package")` [site is here](https://sciencificity.github.io/reclues/).
+
+1. I included the SQL Create scripts in the scripts folder - you can make a PostgreSQL version of `The Great British Bake Off` data to practise on `r emoji::emoji("smile")` `r emoji::emoji("birthday")`.
+
+
+---
+
+name: goodbye
+class: right, middle
+background-image: url(images/nathan-dumlao-KMEqlxz3mKc-unsplash.jpg)
+background-size: cover
+
+
+<img style="border-radius: 75%;" src="images/thank_you1.jpg" width="250px"/>
+
+# Thank you!
+
